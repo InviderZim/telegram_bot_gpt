@@ -1,6 +1,6 @@
 .idea
 .venv
+.env
 Technical Specification.md
-credentials.py
 tg_bot_info.txt
 __pycache__
