@@ -32,7 +32,7 @@ async def text_hendler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_user = context.user_data.get('mode')
 
     if current_user is None:
-        # !!! Переробити gpt все одно працює просто в чаті !!!
+        # !!! Переробити !!! gpt все одно працює просто в чаті !!!
         await send_text(update, context, "Щоб почати, виберіть щось з меню")
     elif current_user == 'random':
         await random(update, context)
@@ -198,13 +198,37 @@ async def talk_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 # відображати разом з черговим результатом
 
 # Функція виклику команди /quiz
+quiz_themes = {
+        'quiz_prog': 'Програмування python',
+        'quiz_math': 'Математичні теорії',
+        'quiz_biology': 'Біологія',
+        'quiz_more': 'Продовжуємо тему',
+    }
 
-async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def quiz_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['mode'] = None
+
+    global quiz_themes #Убрать из меню "еще"
 
     text = load_message('quiz')
 
     await send_image(update, context, 'quiz')
+    quiz_first_menu = quiz_themes.pop('quiz_more')
+    await send_text_buttons(update, context, text, quiz_first_menu)
+
+async def quiz_handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global user_message
+    # global quiz_themes['quiz_stop'] = 'Закінчити'
+
+
+    user_message = update.message.text
+
+    response = await chat_gpt.add_message(user_message)
+
+    await send_text_buttons(update, context, response, {
+
+        'quiz_stop': 'Закінчити',
+    })
 
 
 
@@ -216,12 +240,15 @@ app.add_handler(CommandHandler('start', start))
 app.add_handler(CommandHandler('random', random))
 app.add_handler(CommandHandler('gpt', gpt_command))
 app.add_handler(CommandHandler('talk', talk_with_dead))
+app.add_handler(CommandHandler('quiz', quiz_command))
 app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), gpt_handle_text))
 app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), talk_handle_text))
+app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), quiz_handle_text))
 
 # Зареєструвати обробник колбеку можна так:
 app.add_handler(CallbackQueryHandler(random_buttons_handler, pattern='^random_.*'))
 app.add_handler(CallbackQueryHandler(gpt_button_handler, pattern='^gpt_.*'))
 app.add_handler(CallbackQueryHandler(talk_button_handler, pattern='^talk_.*'))
+app.add_handler(CallbackQueryHandler(talk_button_handler, pattern='^quiz_.*'))
 app.add_handler(CallbackQueryHandler(default_callback_handler))
 app.run_polling()
