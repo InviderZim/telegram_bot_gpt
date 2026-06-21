@@ -270,6 +270,8 @@ async def quiz_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     await send_text(update, context, question)
 
 
+
+
 chat_gpt = ChatGptService(credentials.ChatGPT_TOKEN)
 app = ApplicationBuilder().token(credentials.BOT_TOKEN).build()
 
