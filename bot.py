@@ -28,6 +28,19 @@ quiz_themes = {
         # 'quiz_more': 'Продовжуємо тему',
     }
 
+trainer_buttons = {
+        'trainer_word': 'Нове слово',
+        'trainer_test': 'Тренуватися',
+        'trainer_change_lvl': 'Змінити рівень',
+        'trainer_stop': 'Закінчити',
+    }
+
+trainer_levels = {
+        'trainer_lvl_A': 'Рівень A (Початківець)',
+        'trainer_lvl_B': 'Рівень B (Середній)',
+        'trainer_lvl_C': 'Рівень C (Просунутий)',
+    }
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = load_message('main')
@@ -62,6 +75,8 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await quiz_handle_text(update, context)
     elif current_user == 'trainer':
         await trainer_handle_text(update, context)
+    elif current_user == 'trainer_test':
+        await trainer_handle_test_text(update, context)
 
 
 # Телеграм-бот повинен обробляти команду /random.
@@ -164,6 +179,7 @@ async def talk_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     await update.callback_query.answer()
 
     if query == 'talk_stop':
+        context.user_data['mode'] = None
         await start(update, context)
         return
 
@@ -229,6 +245,7 @@ async def quiz_handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'quiz_change': 'Змінити тему',
         'quiz_stop': 'Закінчити',
     }
+
     await send_text_buttons(update, context, response + score_message, quiz_action_menu)
 
 # Обробка кнопок:
@@ -294,24 +311,111 @@ async def trainer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if 'learned_words' not in context.user_data:
         context.user_data['learned_words'] = []
 
-    text = load_message('trainer')
+    if 'trainer_level' not in context.user_data:
+        await send_image(update, context, 'trainer')
+        await send_text_buttons(update, context, "Будь ласка, оберіть початковий рівень складності:", trainer_levels)
+        return
 
+    text = load_message('trainer')
     await send_image(update, context, 'trainer')
-    await send_text_buttons(update, context, text, {
-        'trainer_word': 'Ще слово',
-        'trainer_test': 'Тренуватися',
-        'trainer_stop': 'Закінчити',
-    })
+    await send_text_buttons(update, context, text, trainer_buttons)
 
 async def trainer_handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global user_message
     user_message = update.message.text
+
     response = await chat_gpt.add_message(user_message)
+
+    await send_text_buttons(update, context, response, trainer_buttons)
 
 async def trainer_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query.data
+    # print(f"Натиснуто кнопку: {query}")
     await update.callback_query.answer()
 
+    if query == 'trainer_stop':
+        context.user_data['mode'] = None
+        await start(update, context)
+        return
+
+    if query == 'trainer_change_lvl':
+        await send_text_buttons(update, context, "Оберіть новий рівень складності:", trainer_levels)
+        return
+
+    if query in trainer_levels:
+        selected_letter  = query.split('_')[-1]
+        context.user_data['trainer_level'] = selected_letter
+
+        await send_text(update, context, f"Чудово! Встановлено {trainer_levels[query]}.")
+
+        text = load_message('trainer')
+        await send_text_buttons(update, context, text, trainer_buttons)
+        return
+
+    if query == 'trainer_test':
+        # learned_words = context.user_data.get('learned_words', [])
+        if not context.user_data.get('learned_words'):
+            await send_text(update, context, "Ви ще не вивчили жодного слова! Натисніть спочатку 'Нове слово'.")
+            return
+
+        context.user_data['test_queue'] = list(context.user_data['learned_words'])
+        context.user_data['trainer_score'] = 0
+
+        current_word = context.user_data['test_queue'].pop(0)
+        context.user_data['current_test_word'] = current_word
+
+        context.user_data['mode'] = 'trainer_test'
+
+        await send_text(update, context, f"Починаємо тест! Перекладіть слово:\n\n **{current_word}**")
+        return
+
+    if query == 'trainer_word':
+        if 'learned_words' not in context.user_data:
+            context.user_data['learned_words'] = []
+
+        prompt = load_prompt('trainer')
+        chat_gpt.set_prompt(prompt)
+
+        user_level = context.user_data.get('trainer_level', 'B')
+        response = await chat_gpt.add_message(f"give_word_{user_level}")
+
+        for line in response.split('\n'):
+            if line.startswith('Word:'):
+                english_word = line.replace('Word:', '').strip()
+
+                if english_word not in context.user_data['learned_words']:
+                    context.user_data['learned_words'].append(english_word)
+
+        await send_text_buttons(update, context, response, trainer_buttons)
+
+
+async def trainer_handle_test_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global user_message
+    user_message = update.message.text
+    current_word = context.user_data.get('current_test_word')
+
+    check_request = f"check: {current_word} -> {user_message}"
+    response = await chat_gpt.add_message(check_request)
+
+    if "правильно" in response.lower() and "неправильно" not in response.lower():
+        context.user_data['trainer_score'] = context.user_data.get('trainer_score', 0) + 1
+
+    await send_text(update, context, response)
+
+    queue = context.user_data.get('test_queue', [])
+
+    if queue:
+        next_word = queue.pop(0)
+        context.user_data['current_test_word'] = next_word
+        await send_text(update, context, f"Наступне слово для перекладу:\n\n **{next_word}**")
+    else:
+        final_score = context.user_data.get('trainer_score', 0)
+        total_words = len(context.user_data.get('learned_words', []))
+
+        context.user_data['mode'] = None
+
+        result_text = f"Тест завершено!\n\n Ваш результат: {final_score} з {total_words} правильних відповідей."
+        await send_text_buttons(update, context, result_text, trainer_buttons)
 
 
 chat_gpt = ChatGptService(credentials.ChatGPT_TOKEN)
