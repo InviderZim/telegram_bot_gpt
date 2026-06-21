@@ -11,6 +11,24 @@ import credentials
 
 user_message = None #Глобальна змінна для отримання запиту від користувача
 
+# Словники для конфігурації меню
+dead_personality = {
+    'talk_cobain': 'Курт Кобейн',
+    'talk_hawking': 'Стівен Гокінг',
+    'talk_nietzsche': 'Фрідріх Ніцше',
+    'talk_tolkien': 'Джон Толкін',
+    'talk_queen': 'Єлизавета II',
+    'talk_stop': 'Закінчити',
+}
+
+quiz_themes = {
+    'quiz_prog': 'Програмування python',
+    'quiz_math': 'Математичні теорії',
+    'quiz_biology': 'Біологія',
+    # 'quiz_more': 'Продовжуємо тему',
+}
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = load_message('main')
     await send_image(update, context, 'main')
@@ -28,18 +46,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # Функція обробки выбору користувача
-async def text_hendler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_user = context.user_data.get('mode')
 
     if current_user is None:
-        # !!! Переробити !!! gpt все одно працює просто в чаті !!!
         await send_text(update, context, "Щоб почати, виберіть щось з меню")
     elif current_user == 'random':
         await random(update, context)
     elif current_user == 'gpt':
         await gpt_handle_text(update, context)
     elif current_user == 'talk':
-        await talk(update, context)
+        await talk_handle_text(update, context)
+    elif current_user == 'quiz':
+        await quiz_handle_text(update, context)
 
 
 # Телеграм-бот повинен обробляти команду /random.
@@ -51,7 +70,6 @@ async def text_hendler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # І кнопка "Хочу ще факт", натискання на яку
 # працює так само, як команда /random
 
-# Функція виклику команди /random
 async def random(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['mode'] = 'random'
     prompt = load_prompt('random')
@@ -59,8 +77,8 @@ async def random(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await send_image(update, context, 'random')
     # await send_text(update, context, response)
     await send_text_buttons(update, context, response, {
-        'random_stop': 'Закінчити',
         'random_one_more': 'Хочу ще факт',
+        'random_stop': 'Закінчити',
     })
 
 # Обробка кнопок:
@@ -72,6 +90,7 @@ async def random_buttons_handler(update: Update, context: ContextTypes.DEFAULT_T
     elif query == 'random_one_more':
         await random(update, context)
     await update.callback_query.answer()
+
 
 
 # Телеграм-бот повинен обробляти команду /gpt.
@@ -118,73 +137,42 @@ async def gpt_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 # До них має бути прикріплена кнопка "Закінчити", натискання на яку
 # працює так само, як команда /start
 
-dead_personality = {
-        'talk_cobain': 'Курт Кобейн',
-        'talk_hawking': 'Стівен Гокінг',
-        'talk_nietzsche': 'Фрідріх Ніцше',
-        'talk_tolkien': 'Джон Толкін',
-        'talk_queen': 'Єлизавета II',
-        'talk_stop': 'Закінчити',
-    }
-
 # Функція виклику команди /talk
 async def talk_with_dead(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['mode'] = None
-
+    context.user_data['mode'] = None  # Чекаємо вибору особистості / Waiting for persona choice
     text = load_message('talk')
-
     await send_image(update, context, 'talk')
     await send_text_buttons(update, context, text, dead_personality)
 
 
 async def talk_handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global user_message
     user_message = update.message.text
-
     response = await chat_gpt.add_message(user_message)
-
     await send_text_buttons(update, context, response, {
-        'talk_new': 'Змінити особистість', # !!!Кнопка не працює, ТГ ії не бачить!!!
+        'talk_new': 'Змінити особистість',
         'talk_stop': 'Закінчити',
     })
 
 # Обробка кнопок:
 # /talk
+
 async def talk_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query.data
+    await update.callback_query.answer()
 
     if query == 'talk_stop':
-        context.user_data['mode'] = None
         await start(update, context)
         return
 
-    if query == 'talk_new': # !!!Кнопка не працює!!!
+    if query == 'talk_new':
         await talk_with_dead(update, context)
         return
 
-    talk_prompt = None
-
-    if query == 'talk_cobain':
-        talk_prompt = 'talk_cobain'
-    elif query == 'talk_hawking':
-        talk_prompt = 'talk_hawking'
-    elif query == 'talk_nietzsche':
-        talk_prompt = 'talk_nietzsche'
-    elif query == 'talk_tolkien':
-        talk_prompt = 'talk_tolkien'
-    elif query == 'talk_queen':
-        talk_prompt = 'talk_queen'
-
-    await update.callback_query.answer()
-
-    if talk_prompt:
+    if query in dead_personality:
         context.user_data['mode'] = 'talk'
-
-        prompt = load_prompt(talk_prompt)
+        prompt = load_prompt(query)
         chat_gpt.set_prompt(prompt)
-
-        await send_text(update, context, f'Зараз ви розмовляєте з {dead_personality[talk_prompt]}')
-
+        await send_text(update, context, f'Зараз ви розмовляєте з {dead_personality[query]}')
 
 
 # Телеграм-бот повинен обробляти команду /quiz.
@@ -198,38 +186,88 @@ async def talk_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 # відображати разом з черговим результатом
 
 # Функція виклику команди /quiz
-quiz_themes = {
-        'quiz_prog': 'Програмування python',
-        'quiz_math': 'Математичні теорії',
-        'quiz_biology': 'Біологія',
-        'quiz_more': 'Продовжуємо тему',
-    }
 
 async def quiz_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['mode'] = None
-
-    global quiz_themes #Убрать из меню "еще"
+    if 'quiz_total_score' not in context.user_data:
+        context.user_data['quiz_total_score'] = 0
+    context.user_data['quiz_topic_score'] = 0
 
     text = load_message('quiz')
-
     await send_image(update, context, 'quiz')
-    quiz_first_menu = quiz_themes.pop('quiz_more')
-    await send_text_buttons(update, context, text, quiz_first_menu)
+
+    start_menu = {
+        'quiz_prog': quiz_themes['quiz_prog'],
+        'quiz_math': quiz_themes['quiz_math'],
+        'quiz_biology': quiz_themes['quiz_biology']
+    }
+
+    await send_text_buttons(update, context, text, start_menu)
 
 async def quiz_handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global user_message
-    # global quiz_themes['quiz_stop'] = 'Закінчити'
-
-
     user_message = update.message.text
-
     response = await chat_gpt.add_message(user_message)
+    lower_response = response.lower()
 
-    await send_text_buttons(update, context, response, {
+    is_correct = ("правильно" in lower_response or "correct" in lower_response)
+    is_incorrect = ("неправильно" in lower_response or "incorrect" in lower_response)
 
+    if is_correct and not is_incorrect:
+        context.user_data['quiz_total_score'] = context.user_data.get('quiz_total_score', 0) + 1
+        context.user_data['quiz_topic_score'] = context.user_data.get('quiz_topic_score', 0) + 1
+
+    topic_score = context.user_data.get('quiz_topic_score', 0)
+    total_score = context.user_data.get('quiz_total_score', 0)
+    score_message = f"\n\n Рахунок теми: {topic_score} | Загальний рахунок: {total_score}"
+
+    quiz_action_menu = {
+        'quiz_more': 'Продовжуємо тему',
+        'quiz_change': 'Змінити тему',
         'quiz_stop': 'Закінчити',
-    })
+    }
+    await send_text_buttons(update, context, response + score_message, quiz_action_menu)
 
+# Обробка кнопок:
+# /quiz
+
+async def quiz_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query.data
+    await update.callback_query.answer()
+
+    if query == 'quiz_stop':
+        final_score = context.user_data.get('quiz_total_score', 0)
+
+        context.user_data['mode'] = None
+        if 'quiz_total_score' in context.user_data:
+            del context.user_data['quiz_total_score']
+
+        await send_text(update, context,
+                        f"Гру закінчено! Ваш загальний рахунок за всі теми: {final_score} балів. Дякуємо за гру!")
+
+        await start(update, context)
+        return
+
+    elif query == 'quiz_change':
+        await quiz_command(update, context)
+        return
+
+    if query == 'quiz_more':
+        gpt_request = "quiz_more"
+    else:
+        theme_name = quiz_themes.get(query)
+        context.user_data['quiz_theme'] = theme_name
+        gpt_request = query
+
+    context.user_data['mode'] = 'quiz'
+
+    if query != 'quiz_more':
+        prompt = load_prompt('quiz')
+        chat_gpt.set_prompt(prompt)
+
+    question = await chat_gpt.add_message(gpt_request)
+
+    await send_text(update, context, question)
 
 
 chat_gpt = ChatGptService(credentials.ChatGPT_TOKEN)
@@ -241,14 +279,13 @@ app.add_handler(CommandHandler('random', random))
 app.add_handler(CommandHandler('gpt', gpt_command))
 app.add_handler(CommandHandler('talk', talk_with_dead))
 app.add_handler(CommandHandler('quiz', quiz_command))
-app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), gpt_handle_text))
-app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), talk_handle_text))
-app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), quiz_handle_text))
+
+app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), text_handler))
 
 # Зареєструвати обробник колбеку можна так:
 app.add_handler(CallbackQueryHandler(random_buttons_handler, pattern='^random_.*'))
 app.add_handler(CallbackQueryHandler(gpt_button_handler, pattern='^gpt_.*'))
 app.add_handler(CallbackQueryHandler(talk_button_handler, pattern='^talk_.*'))
-app.add_handler(CallbackQueryHandler(talk_button_handler, pattern='^quiz_.*'))
+app.add_handler(CallbackQueryHandler(quiz_button_handler, pattern='^quiz_.*'))
 app.add_handler(CallbackQueryHandler(default_callback_handler))
 app.run_polling()
