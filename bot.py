@@ -1,5 +1,3 @@
-from http.client import responses
-
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CallbackQueryHandler, ContextTypes, CommandHandler, MessageHandler, filters
 
@@ -43,40 +41,49 @@ trainer_levels = {
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = load_message('main')
-    await send_image(update, context, 'main')
-    await send_text(update, context, text)
-    await show_main_menu(update, context, {
-        'start': 'Головне меню',
-        'random': 'Дізнатися випадковий цікавий факт 🧠',
-        'gpt': 'Задати питання чату GPT 🤖',
-        'talk': 'Поговорити з відомою особистістю 👤',
-        'quiz': 'Взяти участь у квізі ❓',
-        'trainer': 'Словниковий тренажер 🧠',
-        # Додати команду в меню можна так:
-        # 'command': 'button text'
+    try:
+        text = load_message('main')
+        await send_image(update, context, 'main')
+        await send_text(update, context, text)
+        await show_main_menu(update, context, {
+            'start': 'Головне меню',
+            'random': 'Дізнатися випадковий цікавий факт 🧠',
+            'gpt': 'Задати питання чату GPT 🤖',
+            'talk': 'Поговорити з відомою особистістю 👤',
+            'quiz': 'Взяти участь у квізі ❓',
+            'trainer': 'Словниковий тренажер 🧠',
+            # Додати команду в меню можна так:
+            # 'command': 'button text'
 
-    })
+        })
+
+    except Exception as e:
+        print(f"Помилка в команді /start: {e}")
 
 
 # Функція обробки выбору користувача
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_user = context.user_data.get('mode')
 
-    if current_user is None:
-        await send_text(update, context, "Щоб почати, виберіть щось з меню")
-    elif current_user == 'random':
-        await random(update, context)
-    elif current_user == 'gpt':
-        await gpt_handle_text(update, context)
-    elif current_user == 'talk':
-        await talk_handle_text(update, context)
-    elif current_user == 'quiz':
-        await quiz_handle_text(update, context)
-    elif current_user == 'trainer':
-        await trainer_handle_text(update, context)
-    elif current_user == 'trainer_test':
-        await trainer_handle_test_text(update, context)
+    try:
+        if current_user is None:
+            await send_text(update, context, "Щоб почати, виберіть щось з меню")
+        elif current_user == 'random':
+            await random(update, context)
+        elif current_user == 'gpt':
+            await gpt_handle_text(update, context)
+        elif current_user == 'talk':
+            await talk_handle_text(update, context)
+        elif current_user == 'quiz':
+            await quiz_handle_text(update, context)
+        elif current_user == 'trainer':
+            await trainer_handle_text(update, context)
+        elif current_user == 'trainer_test':
+            await trainer_handle_test_text(update, context)
+
+    except Exception as e:
+        print(f"Помилка в text_handler: {e}")
+        await send_text(update, context, "Сталася внутрішня помилка при обробці тексту. Спробуйте пізніше.")
 
 
 # Телеграм-бот повинен обробляти команду /random.
@@ -89,25 +96,34 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # працює так само, як команда /random
 
 async def random(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['mode'] = 'random'
-    prompt = load_prompt('random')
-    response = await chat_gpt.send_question(prompt, 'Давай рандомний факт')
-    await send_image(update, context, 'random')
-    # await send_text(update, context, response)
-    await send_text_buttons(update, context, response, {
-        'random_one_more': 'Хочу ще факт',
-        'random_stop': 'Закінчити',
-    })
+    try:
+        context.user_data['mode'] = 'random'
+        prompt = load_prompt('random')
+        response = await chat_gpt.send_question(prompt, 'Давай рандомний факт')
+        await send_image(update, context, 'random')
+        # await send_text(update, context, response)
+        await send_text_buttons(update, context, response, {
+            'random_one_more': 'Хочу ще факт',
+            'random_stop': 'Закінчити',
+        })
+
+    except Exception as e:
+        print(f"Помилка в random: {e}")
+        await send_text(update, context, "Не вдалося завантажити факт. Перевірте з'єднання з ШІ.")
 
 # Обробка кнопок:
 # /random и /stop
 async def random_buttons_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query.data
-    if query == 'random_stop':
-        await start(update, context)
-    elif query == 'random_one_more':
-        await random(update, context)
-    await update.callback_query.answer()
+    try:
+        query = update.callback_query.data
+        if query == 'random_stop':
+            await start(update, context)
+        elif query == 'random_one_more':
+            await random(update, context)
+        await update.callback_query.answer()
+
+    except Exception as e:
+        print(f"Помилка в random_buttons_handler: {e}")
 
 
 
@@ -119,32 +135,45 @@ async def random_buttons_handler(update: Update, context: ContextTypes.DEFAULT_T
 
 # Функція виклику команди /gpt
 async def gpt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['mode'] = 'gpt'
-    text = load_message('gpt')
-    prompt = load_prompt('gpt')
-    chat_gpt.set_prompt(prompt)
-    await send_image(update, context, 'gpt')
-    await send_text(update, context, text)
+    try:
+        context.user_data['mode'] = 'gpt'
+        text = load_message('gpt')
+        prompt = load_prompt('gpt')
+        chat_gpt.set_prompt(prompt)
+        await send_image(update, context, 'gpt')
+        await send_text(update, context, text)
+
+    except Exception as e:
+        print(f"Помилка в gpt_command: {e}")
 
 # Функція обробки тексту GPT (gpt_interface)
 async def gpt_handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global user_message
-    user_message = update.message.text
+    try:
+        global user_message
+        user_message = update.message.text
 
-    response = await chat_gpt.add_message(user_message)
+        response = await chat_gpt.add_message(user_message)
 
-    # await send_text(update, context, response)
-    await send_text_buttons(update, context, response, {
-        'gpt_stop': 'Закінчити',
-    })
+        # await send_text(update, context, response)
+        await send_text_buttons(update, context, response, {
+            'gpt_stop': 'Закінчити',
+        })
+
+    except Exception as e:
+        print(f"Помилка в gpt_handle_text: {e}")
+        await send_text(update, context, "ШІ тимчасово не відповідає. Спробуйте надіслати повідомлення знову.")
 
 # Обробка кнопок:
 # /gpt
 async def gpt_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query.data
-    if query == 'gpt_stop':
-        await start(update, context)
-    await update.callback_query.answer()
+    try:
+        query = update.callback_query.data
+        if query == 'gpt_stop':
+            await start(update, context)
+        await update.callback_query.answer()
+
+    except Exception as e:
+        print(f"Помилка в gpt_button_handler: {e}")
 
 # Телеграм-бот повинен обробляти команду /talk.
 # При обробці команди бот надсилає заздалегідь підготовлене зображення та
@@ -157,41 +186,54 @@ async def gpt_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 # Функція виклику команди /talk
 async def talk_with_dead(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['mode'] = None
-    text = load_message('talk')
-    await send_image(update, context, 'talk')
-    await send_text_buttons(update, context, text, dead_personality)
+    try:
+        context.user_data['mode'] = None
+        text = load_message('talk')
+        await send_image(update, context, 'talk')
+        await send_text_buttons(update, context, text, dead_personality)
+
+    except Exception as e:
+        print(f"Помилка в gpt_button_handler: {e}")
 
 
 async def talk_handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_message = update.message.text
-    response = await chat_gpt.add_message(user_message)
-    await send_text_buttons(update, context, response, {
-        'talk_new': 'Змінити особистість',
-        'talk_stop': 'Закінчити',
-    })
+    try:
+        user_message = update.message.text
+        response = await chat_gpt.add_message(user_message)
+        await send_text_buttons(update, context, response, {
+            'talk_new': 'Змінити особистість',
+            'talk_stop': 'Закінчити',
+        })
+
+    except Exception as e:
+        print(f"Помилка в talk_handle_text: {e}")
+        await send_text(update, context, "Дух не чує вас. Повторіть репліку.")
 
 # Обробка кнопок:
 # /talk
 
 async def talk_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query.data
-    await update.callback_query.answer()
+    try:
+        query = update.callback_query.data
+        await update.callback_query.answer()
 
-    if query == 'talk_stop':
-        context.user_data['mode'] = None
-        await start(update, context)
-        return
+        if query == 'talk_stop':
+            context.user_data['mode'] = None
+            await start(update, context)
+            return
 
-    if query == 'talk_new':
-        await talk_with_dead(update, context)
-        return
+        if query == 'talk_new':
+            await talk_with_dead(update, context)
+            return
 
-    if query in dead_personality:
-        context.user_data['mode'] = 'talk'
-        prompt = load_prompt(query)
-        chat_gpt.set_prompt(prompt)
-        await send_text(update, context, f'Зараз ви розмовляєте з {dead_personality[query]}')
+        if query in dead_personality:
+            context.user_data['mode'] = 'talk'
+            prompt = load_prompt(query)
+            chat_gpt.set_prompt(prompt)
+            await send_text(update, context, f'Зараз ви розмовляєте з {dead_personality[query]}')
+
+    except Exception as e:
+        print(f"Помилка в talk_button_handler: {e}")
 
 
 # Телеграм-бот повинен обробляти команду /quiz.
@@ -207,87 +249,100 @@ async def talk_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 # Функція виклику команди /quiz
 
 async def quiz_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['mode'] = None
-    if 'quiz_total_score' not in context.user_data:
-        context.user_data['quiz_total_score'] = 0
-    context.user_data['quiz_topic_score'] = 0
+    try:
+        context.user_data['mode'] = None
+        if 'quiz_total_score' not in context.user_data:
+            context.user_data['quiz_total_score'] = 0
+        context.user_data['quiz_topic_score'] = 0
 
-    text = load_message('quiz')
-    await send_image(update, context, 'quiz')
+        text = load_message('quiz')
+        await send_image(update, context, 'quiz')
 
-    start_menu = {
-        'quiz_prog': quiz_themes['quiz_prog'],
-        'quiz_math': quiz_themes['quiz_math'],
-        'quiz_biology': quiz_themes['quiz_biology']
-    }
+        start_menu = {
+            'quiz_prog': quiz_themes['quiz_prog'],
+            'quiz_math': quiz_themes['quiz_math'],
+            'quiz_biology': quiz_themes['quiz_biology']
+        }
 
-    await send_text_buttons(update, context, text, start_menu)
+        await send_text_buttons(update, context, text, start_menu)
+
+    except Exception as e:
+        print(f"Помилка в quiz_command: {e}")
 
 async def quiz_handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global user_message
-    user_message = update.message.text
-    response = await chat_gpt.add_message(user_message)
-    lower_response = response.lower()
+    try:
+        global user_message
+        user_message = update.message.text
+        response = await chat_gpt.add_message(user_message)
+        lower_response = response.lower()
 
-    is_correct = ("правильно" in lower_response or "correct" in lower_response)
-    is_incorrect = ("неправильно" in lower_response or "incorrect" in lower_response)
+        is_correct = ("правильно" in lower_response or "correct" in lower_response)
+        is_incorrect = ("неправильно" in lower_response or "incorrect" in lower_response)
 
-    if is_correct and not is_incorrect:
-        context.user_data['quiz_total_score'] = context.user_data.get('quiz_total_score', 0) + 1
-        context.user_data['quiz_topic_score'] = context.user_data.get('quiz_topic_score', 0) + 1
+        if is_correct and not is_incorrect:
+            context.user_data['quiz_total_score'] = context.user_data.get('quiz_total_score', 0) + 1
+            context.user_data['quiz_topic_score'] = context.user_data.get('quiz_topic_score', 0) + 1
 
-    topic_score = context.user_data.get('quiz_topic_score', 0)
-    total_score = context.user_data.get('quiz_total_score', 0)
-    score_message = f"\n\n Рахунок теми: {topic_score} | Загальний рахунок: {total_score}"
+        topic_score = context.user_data.get('quiz_topic_score', 0)
+        total_score = context.user_data.get('quiz_total_score', 0)
+        score_message = f"\n\n Рахунок теми: {topic_score} | Загальний рахунок: {total_score}"
 
-    quiz_action_menu = {
-        'quiz_more': 'Продовжуємо тему',
-        'quiz_change': 'Змінити тему',
-        'quiz_stop': 'Закінчити',
-    }
+        quiz_action_menu = {
+            'quiz_more': 'Продовжуємо тему',
+            'quiz_change': 'Змінити тему',
+            'quiz_stop': 'Закінчити',
+        }
 
-    await send_text_buttons(update, context, response + score_message, quiz_action_menu)
+        await send_text_buttons(update, context, response + score_message, quiz_action_menu)
+
+    except Exception as e:
+        print(f"Помилка в quiz_handle_text: {e}")
+        await send_text(update, context, "Не вдалося перевірити відповідь. Надішліть її ще раз.")
 
 # Обробка кнопок:
 # /quiz
 
 async def quiz_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query.data
-    await update.callback_query.answer()
+    try:
+        query = update.callback_query.data
+        await update.callback_query.answer()
 
-    if query == 'quiz_stop':
-        final_score = context.user_data.get('quiz_total_score', 0)
+        if query == 'quiz_stop':
+            final_score = context.user_data.get('quiz_total_score', 0)
 
-        context.user_data['mode'] = None
-        if 'quiz_total_score' in context.user_data:
-            del context.user_data['quiz_total_score']
+            context.user_data['mode'] = None
+            if 'quiz_total_score' in context.user_data:
+                del context.user_data['quiz_total_score']
 
-        await send_text(update, context,
-                        f"Гру закінчено! Ваш загальний рахунок за всі теми: {final_score} балів. Дякуємо за гру!")
+            await send_text(update, context,
+                            f"Гру закінчено! Ваш загальний рахунок за всі теми: {final_score} балів. Дякуємо за гру!")
 
-        await start(update, context)
-        return
+            await start(update, context)
+            return
 
-    elif query == 'quiz_change':
-        await quiz_command(update, context)
-        return
+        elif query == 'quiz_change':
+            await quiz_command(update, context)
+            return
 
-    if query == 'quiz_more':
-        gpt_request = "quiz_more"
-    else:
-        theme_name = quiz_themes.get(query)
-        context.user_data['quiz_theme'] = theme_name
-        gpt_request = query
+        if query == 'quiz_more':
+            gpt_request = "quiz_more"
+        else:
+            theme_name = quiz_themes.get(query)
+            context.user_data['quiz_theme'] = theme_name
+            gpt_request = query
 
-    context.user_data['mode'] = 'quiz'
+        context.user_data['mode'] = 'quiz'
 
-    if query != 'quiz_more':
-        prompt = load_prompt('quiz')
-        chat_gpt.set_prompt(prompt)
+        if query != 'quiz_more':
+            prompt = load_prompt('quiz')
+            chat_gpt.set_prompt(prompt)
 
-    question = await chat_gpt.add_message(gpt_request)
+        question = await chat_gpt.add_message(gpt_request)
 
-    await send_text(update, context, question)
+        await send_text(update, context, question)
+
+    except Exception as e:
+        print(f"Помилка в quiz_button_handler: {e}")
 
 # Словниковий тренажер
 #
@@ -306,116 +361,137 @@ async def quiz_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 # Функція виклику команди /trainer
 
 async def trainer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['mode'] = None
-
-    if 'learned_words' not in context.user_data:
-        context.user_data['learned_words'] = []
-
-    if 'trainer_level' not in context.user_data:
-        await send_image(update, context, 'trainer')
-        await send_text_buttons(update, context, "Будь ласка, оберіть початковий рівень складності:", trainer_levels)
-        return
-
-    text = load_message('trainer')
-    await send_image(update, context, 'trainer')
-    await send_text_buttons(update, context, text, trainer_buttons)
-
-async def trainer_handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global user_message
-    user_message = update.message.text
-
-    response = await chat_gpt.add_message(user_message)
-
-    await send_text_buttons(update, context, response, trainer_buttons)
-
-async def trainer_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query.data
-    # print(f"Натиснуто кнопку: {query}")
-    await update.callback_query.answer()
-
-    if query == 'trainer_stop':
+    try:
         context.user_data['mode'] = None
-        await start(update, context)
-        return
 
-    if query == 'trainer_change_lvl':
-        await send_text_buttons(update, context, "Оберіть новий рівень складності:", trainer_levels)
-        return
-
-    if query in trainer_levels:
-        selected_letter  = query.split('_')[-1]
-        context.user_data['trainer_level'] = selected_letter
-
-        await send_text(update, context, f"Чудово! Встановлено {trainer_levels[query]}.")
-
-        text = load_message('trainer')
-        await send_text_buttons(update, context, text, trainer_buttons)
-        return
-
-    if query == 'trainer_test':
-        # learned_words = context.user_data.get('learned_words', [])
-        if not context.user_data.get('learned_words'):
-            await send_text(update, context, "Ви ще не вивчили жодного слова! Натисніть спочатку 'Нове слово'.")
-            return
-
-        context.user_data['test_queue'] = list(context.user_data['learned_words'])
-        context.user_data['trainer_score'] = 0
-
-        current_word = context.user_data['test_queue'].pop(0)
-        context.user_data['current_test_word'] = current_word
-
-        context.user_data['mode'] = 'trainer_test'
-
-        await send_text(update, context, f"Починаємо тест! Перекладіть слово:\n\n **{current_word}**")
-        return
-
-    if query == 'trainer_word':
         if 'learned_words' not in context.user_data:
             context.user_data['learned_words'] = []
 
-        prompt = load_prompt('trainer')
-        chat_gpt.set_prompt(prompt)
+        if 'trainer_level' not in context.user_data:
+            await send_image(update, context, 'trainer')
+            await send_text_buttons(update, context, "Будь ласка, оберіть початковий рівень складності:", trainer_levels)
+            return
 
-        user_level = context.user_data.get('trainer_level', 'B')
-        response = await chat_gpt.add_message(f"give_word_{user_level}")
+        text = load_message('trainer')
+        await send_image(update, context, 'trainer')
+        await send_text_buttons(update, context, text, trainer_buttons)
 
-        for line in response.split('\n'):
-            if line.startswith('Word:'):
-                english_word = line.replace('Word:', '').strip()
+    except Exception as e:
+        print(f"Помилка в trainer_command: {e}")
 
-                if english_word not in context.user_data['learned_words']:
-                    context.user_data['learned_words'].append(english_word)
+async def trainer_handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        global user_message
+        user_message = update.message.text
+
+        response = await chat_gpt.add_message(user_message)
 
         await send_text_buttons(update, context, response, trainer_buttons)
 
+    except Exception as e:
+        print(f"Помилка в trainer_handle_text: {e}")
+
+async def trainer_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        query = update.callback_query.data
+        # print(f"Натиснуто кнопку: {query}")
+        await update.callback_query.answer()
+
+        if query == 'trainer_stop':
+            context.user_data['mode'] = None
+            await start(update, context)
+            return
+
+        if query == 'trainer_change_lvl':
+            await send_text_buttons(update, context, "Оберіть новий рівень складності:", trainer_levels)
+            return
+
+        if query in trainer_levels:
+            selected_letter  = query.split('_')[-1]
+            context.user_data['trainer_level'] = selected_letter
+
+            await send_text(update, context, f"Чудово! Встановлено {trainer_levels[query]}.")
+
+            text = load_message('trainer')
+            await send_text_buttons(update, context, text, trainer_buttons)
+            return
+
+        if query == 'trainer_test':
+            # learned_words = context.user_data.get('learned_words', [])
+            if not context.user_data.get('learned_words'):
+                await send_text(update, context, "Ви ще не вивчили жодного слова! Натисніть спочатку 'Нове слово'.")
+                return
+
+            context.user_data['test_queue'] = list(context.user_data['learned_words'])
+            context.user_data['trainer_score'] = 0
+
+            current_word = context.user_data['test_queue'].pop(0)
+            context.user_data['current_test_word'] = current_word
+
+            context.user_data['mode'] = 'trainer_test'
+
+            await send_text(update, context, f"Починаємо тест! Перекладіть слово:\n\n **{current_word}**")
+            return
+
+        if query == 'trainer_word':
+            if 'learned_words' not in context.user_data:
+                context.user_data['learned_words'] = []
+
+            prompt = load_prompt('trainer')
+            chat_gpt.set_prompt(prompt)
+
+            user_level = context.user_data.get('trainer_level', 'B')
+            response = await chat_gpt.add_message(f"give_word_{user_level}")
+
+            for line in response.split('\n'):
+                if line.startswith('Word:'):
+                    english_word = line.replace('Word:', '').strip()
+
+                    if english_word not in context.user_data['learned_words']:
+                        context.user_data['learned_words'].append(english_word)
+
+            await send_text_buttons(update, context, response, trainer_buttons)
+
+    except Exception as e:
+        print(f"Помилка в trainer_button_handler: {e}")
+        await send_text_buttons(update, context, "Збій генерації слова ШІ. Будь ласка, спробуйте ще раз.",
+                                trainer_buttons)
+
 
 async def trainer_handle_test_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global user_message
-    user_message = update.message.text
-    current_word = context.user_data.get('current_test_word')
+    try:
+        global user_message
+        user_message = update.message.text
+        current_word = context.user_data.get('current_test_word')
 
-    check_request = f"check: {current_word} -> {user_message}"
-    response = await chat_gpt.add_message(check_request)
+        check_request = f"check: {current_word} -> {user_message}"
+        response = await chat_gpt.add_message(check_request)
 
-    if "правильно" in response.lower() and "неправильно" not in response.lower():
-        context.user_data['trainer_score'] = context.user_data.get('trainer_score', 0) + 1
+        if "правильно" in response.lower() and "неправильно" not in response.lower():
+            context.user_data['trainer_score'] = context.user_data.get('trainer_score', 0) + 1
 
-    await send_text(update, context, response)
+        await send_text(update, context, response)
 
-    queue = context.user_data.get('test_queue', [])
+        queue = context.user_data.get('test_queue', [])
 
-    if queue:
-        next_word = queue.pop(0)
-        context.user_data['current_test_word'] = next_word
-        await send_text(update, context, f"Наступне слово для перекладу:\n\n **{next_word}**")
-    else:
-        final_score = context.user_data.get('trainer_score', 0)
-        total_words = len(context.user_data.get('learned_words', []))
+        if queue:
+            next_word = queue.pop(0)
+            context.user_data['current_test_word'] = next_word
+            await send_text(update, context, f"Наступне слово для перекладу:\n\n *{next_word}")
+        else:
+            final_score = context.user_data.get('trainer_score', 0)
+            total_words = len(context.user_data.get('learned_words', []))
 
-        context.user_data['mode'] = None
+            context.user_data['mode'] = None
 
-        result_text = f"Тест завершено!\n\n Ваш результат: {final_score} з {total_words} правильних відповідей."
-        await send_text_buttons(update, context, result_text, trainer_buttons)
+            result_text = f"Тест завершено!\n\n Ваш результат: {final_score} з {total_words} правильних відповідей."
+            await send_text_buttons(update, context, result_text, trainer_buttons)
+
+    except Exception as e:
+        print(f"Помилка в trainer_handle_test_text: {e}")
+        await send_text(update, context,
+                        f"Тимчасовий збій мережі. Спробуйте надіслати переклад слова *{current_word} ще раз.")
+
 
 
 chat_gpt = ChatGptService(credentials.ChatGPT_TOKEN)

@@ -19,7 +19,6 @@ async def send_text(update: Update, context: ContextTypes.DEFAULT_TYPE,
         message = f"Рядок '{text}' є невалідним з точки зору markdown. Скористайтеся методом send_html()"
         print(message)
         # return await update.message.reply_text(message)
-        # Використовуємо універсальний send_message замість update.message.reply_text
         return await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
 
     text = text.encode('utf16', errors='surrogatepass').decode('utf16')
