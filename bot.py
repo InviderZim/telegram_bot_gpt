@@ -52,6 +52,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'talk': 'Поговорити з відомою особистістю 👤',
             'quiz': 'Взяти участь у квізі ❓',
             'trainer': 'Словниковий тренажер 🧠',
+            'voice': 'Голосовий ChatGPT 🎤'
             # Додати команду в меню можна так:
             # 'command': 'button text'
 
@@ -492,6 +493,28 @@ async def trainer_handle_test_text(update: Update, context: ContextTypes.DEFAULT
         await send_text(update, context,
                         f"Тимчасовий збій мережі. Спробуйте надіслати переклад слова *{current_word} ще раз.")
 
+# **"Голосовий ChatGPT"**
+#
+# Бот повинен прийняти голосове повідомлення від користувача. Перевести його в текст
+# та надіслати ChatGPT. Отримавши відповідь, перетворити її на голосове повідомлення та
+# надіслати у вигляді аудіоповідомлення користувачеві.
+
+# async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     try:
+#         context.user_data['mode'] = 'voice'
+#
+#         text = load_message('voice')
+#         prompt = load_prompt('voice')
+#         chat_gpt.set_prompt(prompt)
+#
+#         await send_image(update, context, 'voice')
+#
+#         await send_text_buttons(update, context, text, {
+#             'voice_stop': 'Закінчити режим'
+#         })
+#     except Exception as e:
+#         print(f"Помилка в voice_command: {e}")
+
 
 
 chat_gpt = ChatGptService(credentials.ChatGPT_TOKEN)
@@ -504,8 +527,11 @@ app.add_handler(CommandHandler('gpt', gpt_command))
 app.add_handler(CommandHandler('talk', talk_with_dead))
 app.add_handler(CommandHandler('quiz', quiz_command))
 app.add_handler(CommandHandler('trainer', trainer_command))
+app.add_handler(CommandHandler('voice', voice_command))
 
 app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), text_handler))
+
+# app.add_handler(MessageHandler(filters.VOICE, voice_handler))
 
 # Зареєструвати обробник колбеку можна так:
 app.add_handler(CallbackQueryHandler(random_buttons_handler, pattern='^random_.*'))
@@ -513,5 +539,6 @@ app.add_handler(CallbackQueryHandler(gpt_button_handler, pattern='^gpt_.*'))
 app.add_handler(CallbackQueryHandler(talk_button_handler, pattern='^talk_.*'))
 app.add_handler(CallbackQueryHandler(quiz_button_handler, pattern='^quiz_.*'))
 app.add_handler(CallbackQueryHandler(trainer_button_handler, pattern='^trainer_.*'))
+app.add_handler(CallbackQueryHandler(trainer_button_handler, pattern='^voice_.*'))
 app.add_handler(CallbackQueryHandler(default_callback_handler))
 app.run_polling()
